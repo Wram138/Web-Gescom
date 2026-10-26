@@ -374,12 +374,35 @@ namespace WebGescomLauncher
                 if (IsServerResponding()) return;
 
                 ProcessStartInfo psi = new ProcessStartInfo();
-                psi.FileName = "cmd.exe";
-                psi.Arguments = "/c npm run start";
                 psi.WorkingDirectory = baseDir;
                 psi.CreateNoWindow = true;
                 psi.UseShellExecute = false;
                 psi.WindowStyle = ProcessWindowStyle.Hidden;
+
+                string bundledNode = Path.Combine(baseDir, @"runtime\node.exe");
+                if (!File.Exists(bundledNode)) bundledNode = Path.Combine(baseDir, "node.exe");
+
+                string serverJs = Path.Combine(baseDir, "server.js");
+                if (!File.Exists(serverJs)) serverJs = Path.Combine(baseDir, @".next\standalone\server.js");
+
+                if (File.Exists(serverJs))
+                {
+                    psi.FileName = File.Exists(bundledNode) ? bundledNode : "node.exe";
+                    psi.Arguments = string.Format("\"{0}\"", serverJs);
+                }
+                else
+                {
+                    psi.FileName = "cmd.exe";
+                    psi.Arguments = "/c npm run start";
+                }
+
+                psi.EnvironmentVariables["PORT"] = port.ToString();
+                psi.EnvironmentVariables["HOSTNAME"] = "0.0.0.0";
+                if (File.Exists(bundledNode))
+                {
+                    string runtimeDir = Path.GetDirectoryName(bundledNode);
+                    psi.EnvironmentVariables["PATH"] = runtimeDir + ";" + Environment.GetEnvironmentVariable("PATH");
+                }
 
                 serverProcess = new Process();
                 serverProcess.StartInfo = psi;
