@@ -1,0 +1,105 @@
+{
+  "version": "1.0.0",
+  "build": 24,
+  "updatedAt": "2026-10-26T20:48:53.675Z",
+  "history": [
+    {
+      "version": "1.0.0",
+      "build": 23,
+      "date": "2026-10-26",
+      "title": "Regras de Caixa e Ocultacao de Comissoes",
+      "description": "Fechamento as cegas com diferencas, bloqueio de venda sem caixa ou de dia anterior, e sigilo de comissao"
+    },
+    {
+      "version": "1.0.0",
+      "build": 21,
+      "date": "2026-10-26",
+      "title": "Ajuste de Conexao para valida.alecrim.tec.br SSL (Porta 443 / 1806)",
+      "description": "Adicionado suporte prioritario a conexao HTTPS Cloudflare com fallback automatico"
+    },
+    {
+      "version": "1.0.0",
+      "build": 19,
+      "date": "2026-10-26",
+      "title": "Configuracao da Porta 1806 no Servidor de Licencas",
+      "description": "Servidor VPS e cliente Web-Gescom atualizados para valida.alecrim.tec.br:1806"
+    },
+    {
+      "version": "1.0.0",
+      "build": 15,
+      "date": "2026-10-26",
+      "title": "Ativacao de Licenca via VPS (valida.alecrim.tec.br)",
+      "description": "Abertura inicial com banco zerado requer solicitacao por CNPJ, aprovacao no painel da VPS e desbloqueio automatico"
+    },
+    {
+      "version": "1.0.0",
+      "build": 12,
+      "date": "2026-10-26",
+      "title": "Sistema de Licenciamento VPS e Bloqueio por Inadimplencia",
+      "description": "Integracao com Serv-Gescom, regra de 5 dias de tolerancia offline e tela de bloqueio com gestao de emitente"
+    },
+    {
+      "version": "1.0.0",
+      "build": 10,
+      "date": "2026-10-26",
+      "title": "Barra lateral recolhivel no Mobile",
+      "description": "Menu lateral responsivo com gaveta deslizante, botao hamburguer no header e 100% de largura para conteudo no celular"
+    },
+    {
+      "version": "1.0.0",
+      "build": 8,
+      "date": "2026-10-26",
+      "title": "Implementacao do Contador de Versoes",
+      "description": "Sistema automatico de contagem de build, historico de alteracoes e exibicao no Sidebar, Header, Login e Mobile"
+    },
+    {
+      "version": "1.0.0",
+      "build": 7,
+      "date": "2026-10-26",
+      "title": "Terminal Mobile de Bolso & Comandas (Opção C)",
+      "description": "Acesso direto para smartphones (Android/iOS) no Wi-Fi da loja para consulta de estoque e envio de comandas de pré-venda ao caixa."
+    },
+    {
+      "version": "1.0.0",
+      "build": 6,
+      "date": "2026-10-26",
+      "title": "Gestão de Permissões RBAC & Troca de Operador com Senha",
+      "description": "Matriz de controle de acesso configurável pelo Admin e autenticação com senha do usuário ao alternar operadores."
+    },
+    {
+      "version": "1.0.0",
+      "build": 5,
+      "date": "2026-10-26",
+      "title": "Módulo de Clientes & Regras de Revenda",
+      "description": "Validação estrita de CPF na Receita Federal, CEP via ViaCEP, promoção automática em compras > R$ 300, até 30% de desconto e renovação a cada 90 dias."
+    },
+    {
+      "version": "1.0.0",
+      "build": 4,
+      "date": "2026-10-26",
+      "title": "Executável Nativo Windows & Seletor de Rede",
+      "description": "Lançador Web-Gescom.exe com ícone oficial, modo janela dedicada, seletor de Servidor/Cliente e detecção de IP local."
+    },
+    {
+      "version": "1.0.0",
+      "build": 3,
+      "date": "2026-10-26",
+      "title": "Financeiro Completo (Pagar, Receber e Comissões)",
+      "description": "Contas a Pagar com status, Contas a Receber com crediário parcelado e extrato de comissões por vendedor."
+    },
+    {
+      "version": "1.0.0",
+      "build": 2,
+      "date": "2026-10-26",
+      "title": "Frente de Caixa (PDV Ágil) & Impressão Térmica",
+      "description": "Atalhos rápidos F2/F4/Esc, leitor de código de barras, controle de turnos de caixa e impressão de cupom 80mm."
+    },
+    {
+      "version": "1.0.0",
+      "build": 1,
+      "date": "2026-10-26",
+      "title": "Estrutura Inicial do Sistema",
+      "description": "Setup Next.js 14, Tailwind CSS, Prisma e banco de dados SQLite portátil (gescom.db)."
+    }
+  ]
+}

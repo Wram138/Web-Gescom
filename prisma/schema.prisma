@@ -1,0 +1,317 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./gescom.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             String   @id @default(uuid())
+  name           String
+  username       String   @unique
+  passwordHash   String
+  role           String   @default("VENDEDOR") // ADMIN, GERENTE, CAIXA, VENDEDOR
+  commissionRate Float    @default(0.0)        // Taxa de comissão padrão %
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  salesAsCashier Sale[]          @relation("CashierSales")
+  salesAsSeller  Sale[]          @relation("SellerSales")
+  commissions    Commission[]
+  cashRegisters  CashRegister[]
+  stockMovements StockMovement[]
+  cashMovements  CashMovement[]
+  preSales       PreSale[]
+}
+
+model Customer {
+  id                 String    @id @default(uuid())
+  name               String
+  cpfCnpj            String?   @unique
+  phone              String?
+  hasWhatsapp        Boolean   @default(false)
+  email              String?
+  
+  // Endereço detalhado
+  cep                String?
+  street             String?
+  number             String?
+  complement         String?
+  neighborhood       String?
+  city               String?
+  state              String?
+  address            String?
+
+  creditLimit        Float     @default(0.0)
+  notes              String?
+  active             Boolean   @default(true)
+
+  // Regras de Revenda
+  isRevenda          Boolean   @default(false)
+  revendaStatus      String    @default("NAO_REVENDA") // NAO_REVENDA, PENDENTE_APROVACAO, ATIVO, EXPIRADO
+  revendaDesconto    Float     @default(0.0)           // Percentual de desconto de revenda (até 30%)
+  revendaAprovadoPor String?                           // Gerente ou Admin que aprovou
+  revendaAprovadoEm  DateTime?
+  revendaValidadeAte DateTime?                         // Validade do benefício (90 dias a partir da última compra)
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  sales              Sale[]
+  accountsReceivable AccountReceivable[]
+  preSales           PreSale[]
+}
+
+model Supplier {
+  id          String   @id @default(uuid())
+  name        String
+  cnpj        String?  @unique
+  phone       String?
+  email       String?
+  contactName String?
+  address     String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products        Product[]
+  accountsPayable AccountPayable[]
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+}
+
+model Product {
+  id             String   @id @default(uuid())
+  code           String?  @unique // Código interno / SKU
+  barcode        String?  @unique // Código de barras EAN
+  name           String
+  description    String?
+  unit           String   @default("UN") // UN, KG, CX, LT, MT, etc.
+  categoryId     String?
+  supplierId     String?
+  costPrice      Float    @default(0.0)
+  salePrice      Float    @default(0.0)
+  stockQuantity  Float    @default(0.0)
+  minStock       Float    @default(0.0)
+  commissionRate Float?   // Se nulo, usa a comissão do vendedor
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  category       Category?       @relation(fields: [categoryId], references: [id])
+  supplier       Supplier?       @relation(fields: [supplierId], references: [id])
+  stockMovements StockMovement[]
+  saleItems      SaleItem[]
+  preSaleItems   PreSaleItem[]
+}
+
+model StockMovement {
+  id            String   @id @default(uuid())
+  productId     String
+  type          String   // ENTRADA, SAIDA, AJUSTE, PERDA
+  quantity      Float
+  previousStock Float
+  newStock      Float
+  reason        String?
+  userId        String?
+  createdAt     DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id])
+}
+
+model CashRegister {
+  id                    String    @id @default(uuid())
+  userId                String
+  openedAt              DateTime  @default(now())
+  closedAt              DateTime?
+  initialAmount         Float     @default(0.0)
+  finalAmountCalculated Float?    @default(0.0)
+  finalAmountReported   Float?    @default(0.0)
+  status                String    @default("ABERTO") // ABERTO, FECHADO
+  notes                 String?
+
+  user      User           @relation(fields: [userId], references: [id])
+  movements CashMovement[]
+  sales     Sale[]
+}
+
+model CashMovement {
+  id             String   @id @default(uuid())
+  cashRegisterId String
+  userId         String
+  type           String   // SUPRIMENTO, SANGRIA
+  amount         Float
+  reason         String
+  createdAt      DateTime @default(now())
+
+  cashRegister CashRegister @relation(fields: [cashRegisterId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+}
+
+model Sale {
+  id             Int      @id @default(autoincrement()) // Cupom número #1, #2, etc.
+  cashRegisterId String?
+  cashierId      String   // Operador de caixa que registrou
+  sellerId       String?  // Vendedor que ganha a comissão
+  customerId     String?
+  subtotal       Float    @default(0.0)
+  discount       Float    @default(0.0)
+  total          Float    @default(0.0)
+  status         String   @default("CONCLUIDA") // CONCLUIDA, CANCELADA
+  paymentMethod  String   @default("DINHEIRO")
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  cashRegister       CashRegister?       @relation(fields: [cashRegisterId], references: [id])
+  cashier            User                @relation("CashierSales", fields: [cashierId], references: [id])
+  seller             User?               @relation("SellerSales", fields: [sellerId], references: [id])
+  customer           Customer?           @relation(fields: [customerId], references: [id])
+  items              SaleItem[]
+  payments           SalePayment[]
+  commissions        Commission[]
+  accountsReceivable AccountReceivable[]
+}
+
+model SaleItem {
+  id               String @id @default(uuid())
+  saleId           Int
+  productId        String
+  productName      String
+  unitPrice        Float
+  costPrice        Float  @default(0.0)
+  quantity         Float
+  discount         Float  @default(0.0)
+  total            Float
+  commissionRate   Float  @default(0.0)
+  commissionAmount Float  @default(0.0)
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model SalePayment {
+  id           String   @id @default(uuid())
+  saleId       Int
+  method       String   // DINHEIRO, PIX, CARTAO_DEBITO, CARTAO_CREDITO, CREDIARIO, OUTRO
+  amount       Float
+  installments Int      @default(1)
+  changeAmount Float    @default(0.0)
+  createdAt    DateTime @default(now())
+
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+}
+
+model Commission {
+  id        String    @id @default(uuid())
+  saleId    Int
+  sellerId  String
+  amount    Float
+  rate      Float
+  status    String    @default("PENDENTE") // PENDENTE, PAGO
+  paidAt    DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  sale   Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  seller User @relation(fields: [sellerId], references: [id])
+}
+
+model AccountPayable {
+  id            String    @id @default(uuid())
+  description   String
+  supplierId    String?
+  amount        Float
+  dueDate       DateTime
+  paidDate      DateTime?
+  status        String    @default("PENDENTE") // PENDENTE, PAGO, CANCELADO
+  paymentMethod String?   // DINHEIRO, PIX, BOLETO, CARTAO, OUTRO
+  category      String?   // Despesa Fixa, Compra de Mercadoria, etc.
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+}
+
+model AccountReceivable {
+  id                String    @id @default(uuid())
+  saleId            Int?
+  customerId        String
+  installmentNumber Int       @default(1)
+  totalInstallments Int       @default(1)
+  amount            Float
+  dueDate           DateTime
+  paidDate          DateTime?
+  status            String    @default("PENDENTE") // PENDENTE, PAGO, ATRASADO, CANCELADO
+  paymentMethod     String?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  sale     Sale?    @relation(fields: [saleId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+}
+
+model SystemSetting {
+  id                    String   @id @default("config_padrao")
+  storeName             String   @default("Web-Gescom Comercial")
+  cnpj                  String?  @default("")
+  phone                 String?  @default("")
+  address               String?  @default("")
+  receiptFooter         String?  @default("Obrigado pela preferência! Volte sempre.")
+  defaultCommissionRate Float    @default(3.0)
+  updatedAt             DateTime @updatedAt
+}
+
+model RolePermission {
+  role      String   @id // GERENTE, CAIXA, VENDEDOR, etc.
+  modules   String   // Array JSON com os módulos permitidos
+  updatedAt DateTime @updatedAt
+}
+
+model PreSale {
+  id           Int           @id @default(autoincrement()) // Número da Comanda / Pré-Venda
+  sellerId     String
+  customerId   String?
+  customerName String?
+  subtotal     Float         @default(0.0)
+  discount     Float         @default(0.0)
+  total        Float         @default(0.0)
+  status       String        @default("PENDENTE") // PENDENTE, FATURADO, CANCELADO
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  seller       User          @relation(fields: [sellerId], references: [id])
+  customer     Customer?     @relation(fields: [customerId], references: [id])
+  items        PreSaleItem[]
+}
+
+model PreSaleItem {
+  id          String   @id @default(uuid())
+  preSaleId   Int
+  productId   String
+  productName String
+  unitPrice   Float
+  quantity    Float
+  discount    Float    @default(0.0)
+  total       Float
+
+  preSale     PreSale  @relation(fields: [preSaleId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+}
+
+
+
