@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   Send,
   Sparkles,
+  Pencil,
+  X,
 } from 'lucide-react';
 import { validateCNPJ } from '@/lib/validators';
 
@@ -41,6 +43,7 @@ export default function LicenseLockScreen({ licenseInfo, onRefresh }: LicenseLoc
   const [razaoSocial, setRazaoSocial] = useState(licenseInfo.razaoSocial || '');
   const [nomeFantasia, setNomeFantasia] = useState(licenseInfo.nomeFantasia || '');
   const [phone, setPhone] = useState(licenseInfo.phone || '');
+  const [showEditCnpj, setShowEditCnpj] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
@@ -465,7 +468,7 @@ export default function LicenseLockScreen({ licenseInfo, onRefresh }: LicenseLoc
             </div>
 
             {/* Ações */}
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               <button
                 onClick={handleCheckNow}
                 disabled={isChecking}
@@ -474,6 +477,81 @@ export default function LicenseLockScreen({ licenseInfo, onRefresh }: LicenseLoc
                 <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
                 <span>{isChecking ? 'Consultando Servidor...' : 'Verificar Pagamento / Revalidar Licença'}</span>
               </button>
+
+              {!showEditCnpj ? (
+                <button
+                  type="button"
+                  onClick={() => setShowEditCnpj(true)}
+                  className="w-full py-2.5 bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white font-bold text-xs rounded-xl border border-slate-700 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Corrigir ou Alterar CNPJ / Razão Social</span>
+                </button>
+              ) : (
+                <div className="bg-slate-950 p-4 rounded-2xl border border-blue-900/60 space-y-3 animate-fadeIn">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                      <Pencil className="w-3.5 h-3.5" />
+                      Alterar CNPJ para Validação
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowEditCnpj(false)}
+                      className="text-slate-400 hover:text-white text-xs p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleRequestActivation} className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Novo CNPJ *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={cnpj}
+                        onChange={(e) => handleCnpjChange(e.target.value)}
+                        placeholder="00.000.000/0000-00"
+                        className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-white font-mono text-sm font-bold focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Razão Social *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={razaoSocial}
+                        onChange={(e) => setRazaoSocial(e.target.value)}
+                        placeholder="Nome Empresarial da Empresa"
+                        className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-white text-xs font-semibold focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-blue-600/30 cursor-pointer"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>{isSubmitting ? 'Enviando...' : 'Salvar e Solicitar Licença'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowEditCnpj(false)}
+                        className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
 
               <div className="flex justify-between items-center text-xs pt-1 text-slate-500 text-[11px]">
                 <span>Servidor: valida.alecrim.tec.br</span>

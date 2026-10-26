@@ -331,6 +331,25 @@ export async function requestLicenseActivation({
     });
 
     if (ok) {
+      // Atualiza também o banco de dados do sistema em segundo plano
+      try {
+        const prisma = (await import('@/lib/prisma')).default;
+        await prisma.systemSetting.upsert({
+          where: { id: 'config_padrao' },
+          update: {
+            cnpj,
+            razaoSocial,
+            storeName: nomeFantasia || razaoSocial,
+          },
+          create: {
+            id: 'config_padrao',
+            cnpj,
+            razaoSocial,
+            storeName: nomeFantasia || razaoSocial,
+          },
+        });
+      } catch {}
+
       if (data.status === 'ATIVO' && data.authorized) {
         // Licença já liberada diretamente
         saveLicenseConfig({
