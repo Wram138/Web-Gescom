@@ -1,12 +1,25 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { validateCPF, validateCEP, formatPhone, checkRevendaValidity } from '@/lib/validators';
+import { validateCPF, validateCNPJ, validateCEP, formatPhone, checkRevendaValidity } from '@/lib/validators';
+
+function validateDocument(docRaw?: string | null): { valid: boolean; formatted: string; type: 'CPF' | 'CNPJ' | 'NONE'; error?: string } {
+  if (!docRaw || !docRaw.trim()) return { valid: true, formatted: '', type: 'NONE' };
+  const clean = docRaw.replace(/\D/g, '');
+  if (clean.length === 11) {
+    const res = validateCPF(clean);
+    return { valid: res.valid, formatted: res.formatted, type: 'CPF', error: res.error };
+  } else if (clean.length === 14) {
+    const res = validateCNPJ(clean);
+    return { valid: res.valid, formatted: res.formatted, type: 'CNPJ', error: res.error };
+  }
+  return { valid: false, formatted: docRaw, type: 'NONE', error: 'Documento deve conter 11 dígitos (CPF) ou 14 dígitos (CNPJ)' };
+}
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
-    const type = searchParams.get('type'); // 'REVENDA', 'SIMPLES'
+    const type = searchParams.get('type'); // 'CLIENTE', 'REVENDA', 'FORNECEDOR'
 
     const where: any = { active: true };
 
@@ -18,16 +31,19 @@ export async function GET(request: Request) {
       ];
     }
 
-    if (type === 'REVENDA') {
+    if (type === 'CLIENTE') {
+      where.isClient = true;
+    } else if (type === 'REVENDA') {
       where.isRevenda = true;
-    } else if (type === 'SIMPLES') {
-      where.isRevenda = false;
+    } else if (type === 'FORNECEDOR') {
+      where.isSupplier = true;
     }
 
     const customers = await prisma.customer.findMany({
       where,
       include: {
         accountsReceivable: { where: { status: 'PENDENTE' } },
+        accountsPayable: { where: { status: 'PENDENTE' } },
         sales: {
           select: { id: true, total: true, createdAt: true, status: true },
           orderBy: { createdAt: 'desc' },
@@ -57,6 +73,8 @@ export async function GET(request: Request) {
         validity,
         totalSalesCount: c.sales.length,
         lastSale: c.sales[0] || null,
+        pendingReceivablesCount: c.accountsReceivable.length,
+        pendingPayablesCount: c.accountsPayable ? c.accountsPayable.length : 0,
       };
     });
 
@@ -73,7 +91,9 @@ export async function POST(request: Request) {
       name,
       phone,
       hasWhatsapp = false,
+      isClient = true,
       isRevenda = false,
+      isSupplier = false,
       cpfCnpj,
       cep,
       street,
@@ -89,26 +109,41 @@ export async function POST(request: Request) {
       approvedBy, // Se informado e usuário for ADMIN/GERENTE
     } = body;
 
-    // 1. Validação básica para Cliente Simples: apenas nome e telefone
+    // 1. Validação básica: nome e telefone obrigatórios
     if (!name || name.trim().length === 0) {
-      return NextResponse.json({ error: 'O nome do cliente é obrigatório' }, { status: 400 });
+      return NextResponse.json({ error: 'O nome da pessoa é obrigatório' }, { status: 400 });
     }
     if (!phone || phone.trim().length === 0) {
-      return NextResponse.json({ error: 'O telefone do cliente é obrigatório' }, { status: 400 });
+      return NextResponse.json({ error: 'O telefone de contato é obrigatório' }, { status: 400 });
     }
 
-    let formattedCPF: string | null = null;
+    // Deve ser ao menos Cliente, Revenda ou Fornecedor
+    const finalIsClient = isClient ?? true;
+    const finalIsRevenda = Boolean(isRevenda);
+    const finalIsSupplier = Boolean(isSupplier);
+
+    if (!finalIsClient && !finalIsRevenda && !finalIsSupplier) {
+      return NextResponse.json(
+        { error: 'A pessoa deve ser cadastrada em ao menos um perfil: Cliente, Revenda ou Fornecedor.' },
+        { status: 400 }
+      );
+    }
+
+    let formattedDoc: string | null = null;
     let formattedCEP: string | null = null;
     let fullAddress: string | null = null;
 
-    // 2. Validações adicionais e obrigatórias se for Cliente Revenda
-    if (isRevenda) {
-      // CPF obrigatório e validado
-      const cpfResult = validateCPF(cpfCnpj);
-      if (!cpfResult.valid) {
-        return NextResponse.json({ error: `CPF inválido para Revenda: ${cpfResult.error}` }, { status: 400 });
+    // 2. Validações adicionais e obrigatórias se for Revenda
+    if (finalIsRevenda) {
+      // Documento obrigatório para revenda
+      if (!cpfCnpj || !cpfCnpj.trim()) {
+        return NextResponse.json({ error: 'CPF ou CNPJ é obrigatório para perfil de Revenda.' }, { status: 400 });
       }
-      formattedCPF = cpfResult.formatted;
+      const docResult = validateDocument(cpfCnpj);
+      if (!docResult.valid) {
+        return NextResponse.json({ error: `Documento inválido para Revenda: ${docResult.error}` }, { status: 400 });
+      }
+      formattedDoc = docResult.formatted;
 
       // Endereço completo obrigatório
       const cepResult = validateCEP(cep);
@@ -118,30 +153,30 @@ export async function POST(request: Request) {
       formattedCEP = cepResult.formatted;
 
       if (!street || street.trim().length === 0) {
-        return NextResponse.json({ error: 'O logradouro/rua é obrigatório para cliente Revenda' }, { status: 400 });
+        return NextResponse.json({ error: 'O logradouro/rua é obrigatório para cadastro de Revenda' }, { status: 400 });
       }
       if (!number || number.trim().length === 0) {
-        return NextResponse.json({ error: 'O número do endereço é obrigatório para cliente Revenda' }, { status: 400 });
+        return NextResponse.json({ error: 'O número do endereço é obrigatório para cadastro de Revenda' }, { status: 400 });
       }
       if (!neighborhood || neighborhood.trim().length === 0) {
-        return NextResponse.json({ error: 'O bairro é obrigatório para cliente Revenda' }, { status: 400 });
+        return NextResponse.json({ error: 'O bairro é obrigatório para cadastro de Revenda' }, { status: 400 });
       }
       if (!city || city.trim().length === 0) {
-        return NextResponse.json({ error: 'A cidade é obrigatória para cliente Revenda' }, { status: 400 });
+        return NextResponse.json({ error: 'A cidade é obrigatória para cadastro de Revenda' }, { status: 400 });
       }
       if (!state || state.trim().length === 0) {
-        return NextResponse.json({ error: 'O estado (UF) é obrigatório para cliente Revenda' }, { status: 400 });
+        return NextResponse.json({ error: 'O estado (UF) é obrigatório para cadastro de Revenda' }, { status: 400 });
       }
 
       fullAddress = `${street}, ${number}${complement ? ` - ${complement}` : ''}, ${neighborhood}, ${city}/${state} - CEP: ${formattedCEP}`;
     } else {
-      // Cliente Simples: valida CPF apenas se fornecido
+      // Cliente ou Fornecedor simples: valida CPF/CNPJ se informado
       if (cpfCnpj && cpfCnpj.trim().length > 0) {
-        const cpfResult = validateCPF(cpfCnpj);
-        if (!cpfResult.valid) {
-          return NextResponse.json({ error: `CPF inválido: ${cpfResult.error}` }, { status: 400 });
+        const docResult = validateDocument(cpfCnpj);
+        if (!docResult.valid) {
+          return NextResponse.json({ error: `Documento inválido: ${docResult.error}` }, { status: 400 });
         }
-        formattedCPF = cpfResult.formatted;
+        formattedDoc = docResult.formatted;
       }
       if (cep && cep.trim().length > 0) {
         const cepResult = validateCEP(cep);
@@ -152,13 +187,16 @@ export async function POST(request: Request) {
       }
     }
 
-    // Verifica se CPF já foi cadastrado
-    if (formattedCPF) {
+    // Verifica se CPF/CNPJ já foi cadastrado
+    if (formattedDoc) {
       const existing = await prisma.customer.findFirst({
-        where: { cpfCnpj: formattedCPF },
+        where: { cpfCnpj: formattedDoc },
       });
       if (existing) {
-        return NextResponse.json({ error: `Já existe um cliente cadastrado com o CPF ${formattedCPF}` }, { status: 400 });
+        return NextResponse.json(
+          { error: `Já existe uma pessoa cadastrada com o documento ${formattedDoc} (${existing.name})` },
+          { status: 400 }
+        );
       }
     }
 
@@ -169,21 +207,18 @@ export async function POST(request: Request) {
     let revendaAprovadoEm: Date | null = null;
     let revendaAprovadoPor: string | null = null;
 
-    if (isRevenda) {
+    if (finalIsRevenda) {
       const disc = Math.min(30, Math.max(0, Number(revendaDesconto) || 0));
 
       if (approvedBy && disc > 0) {
-        // Aprovado diretamente pelo Gerente/Admin
         revendaStatus = 'ATIVO';
         finalDiscount = disc;
         revendaAprovadoPor = approvedBy;
         revendaAprovadoEm = new Date();
-        // 90 dias de validade inicial
-        revendaValidadeAte = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+        revendaValidadeAte = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 dias
       } else {
-        // Criado por operador ou sem aprovação imediata -> Aguardando Gerente/Admin
         revendaStatus = 'PENDENTE_APROVACAO';
-        finalDiscount = disc; // Sugerido
+        finalDiscount = disc;
       }
     }
 
@@ -193,7 +228,7 @@ export async function POST(request: Request) {
         phone: formatPhone(phone),
         hasWhatsapp: Boolean(hasWhatsapp),
         email: email ? email.trim() : null,
-        cpfCnpj: formattedCPF,
+        cpfCnpj: formattedDoc,
         cep: formattedCEP,
         street: street ? street.trim() : null,
         number: number ? number.trim() : null,
@@ -204,7 +239,9 @@ export async function POST(request: Request) {
         address: fullAddress,
         creditLimit: Number(creditLimit) || 0.0,
         notes: notes ? notes.trim() : null,
-        isRevenda: Boolean(isRevenda),
+        isClient: finalIsClient,
+        isRevenda: finalIsRevenda,
+        isSupplier: finalIsSupplier,
         revendaStatus,
         revendaDesconto: finalDiscount,
         revendaAprovadoPor,
@@ -215,7 +252,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(newCustomer, { status: 201 });
   } catch (error: any) {
-    console.error('Erro ao cadastrar cliente:', error);
+    console.error('Erro ao cadastrar pessoa:', error);
     return NextResponse.json({ error: error.message || 'Erro ao processar cadastro' }, { status: 500 });
   }
 }
@@ -270,7 +307,9 @@ export async function PUT(request: Request) {
       name,
       phone,
       hasWhatsapp,
+      isClient,
       isRevenda,
+      isSupplier,
       cpfCnpj,
       cep,
       street,
@@ -284,16 +323,22 @@ export async function PUT(request: Request) {
       notes,
     } = body;
 
-    let formattedCPF = customer.cpfCnpj;
+    let formattedDoc = customer.cpfCnpj;
     let formattedCEP = customer.cep;
     let fullAddress = customer.address;
 
-    if (isRevenda) {
-      const cpfResult = validateCPF(cpfCnpj || customer.cpfCnpj || '');
-      if (!cpfResult.valid) {
-        return NextResponse.json({ error: `CPF inválido para Revenda: ${cpfResult.error}` }, { status: 400 });
+    const targetIsRevenda = isRevenda !== undefined ? Boolean(isRevenda) : customer.isRevenda;
+
+    if (targetIsRevenda) {
+      const docInput = cpfCnpj || customer.cpfCnpj || '';
+      if (!docInput.trim()) {
+        return NextResponse.json({ error: 'CPF ou CNPJ é obrigatório para perfil de Revenda.' }, { status: 400 });
       }
-      formattedCPF = cpfResult.formatted;
+      const docResult = validateDocument(docInput);
+      if (!docResult.valid) {
+        return NextResponse.json({ error: `Documento inválido para Revenda: ${docResult.error}` }, { status: 400 });
+      }
+      formattedDoc = docResult.formatted;
 
       const cepResult = validateCEP(cep || customer.cep || '');
       if (!cepResult.valid) {
@@ -302,9 +347,15 @@ export async function PUT(request: Request) {
       formattedCEP = cepResult.formatted;
 
       if (!street || !number || !neighborhood || !city || !state) {
-        return NextResponse.json({ error: 'Endereço completo é obrigatório para cliente Revenda' }, { status: 400 });
+        return NextResponse.json({ error: 'Endereço completo é obrigatório para perfil de Revenda' }, { status: 400 });
       }
       fullAddress = `${street}, ${number}${complement ? ` - ${complement}` : ''}, ${neighborhood}, ${city}/${state} - CEP: ${formattedCEP}`;
+    } else if (cpfCnpj && cpfCnpj.trim()) {
+      const docResult = validateDocument(cpfCnpj);
+      if (!docResult.valid) {
+        return NextResponse.json({ error: `Documento inválido: ${docResult.error}` }, { status: 400 });
+      }
+      formattedDoc = docResult.formatted;
     }
 
     const updated = await prisma.customer.update({
@@ -314,7 +365,7 @@ export async function PUT(request: Request) {
         phone: phone ? formatPhone(phone) : customer.phone,
         hasWhatsapp: hasWhatsapp !== undefined ? Boolean(hasWhatsapp) : customer.hasWhatsapp,
         email: email !== undefined ? (email ? email.trim() : null) : customer.email,
-        cpfCnpj: formattedCPF,
+        cpfCnpj: formattedDoc,
         cep: formattedCEP,
         street: street !== undefined ? street : customer.street,
         number: number !== undefined ? number : customer.number,
@@ -325,7 +376,9 @@ export async function PUT(request: Request) {
         address: fullAddress,
         creditLimit: creditLimit !== undefined ? Number(creditLimit) : customer.creditLimit,
         notes: notes !== undefined ? notes : customer.notes,
-        isRevenda: isRevenda !== undefined ? Boolean(isRevenda) : customer.isRevenda,
+        isClient: isClient !== undefined ? Boolean(isClient) : customer.isClient,
+        isRevenda: targetIsRevenda,
+        isSupplier: isSupplier !== undefined ? Boolean(isSupplier) : customer.isSupplier,
       },
     });
 

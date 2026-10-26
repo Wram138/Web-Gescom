@@ -9,12 +9,18 @@ export async function GET(request: Request) {
 
     const where: any = {};
     if (status) where.status = status;
-    if (supplierId) where.supplierId = supplierId;
+    if (supplierId) {
+      where.OR = [
+        { supplierId: supplierId },
+        { personId: supplierId }
+      ];
+    }
 
     const payables = await prisma.accountPayable.findMany({
       where,
       include: {
         supplier: true,
+        person: true,
       },
       orderBy: { dueDate: 'asc' },
     });
@@ -26,7 +32,21 @@ export async function GET(request: Request) {
       if (currentStatus === 'PENDENTE' && new Date(item.dueDate) < now) {
         currentStatus = 'ATRASADO';
       }
-      return { ...item, status: currentStatus };
+
+      // Resolve o favorecido/fornecedor independentemente se for da tabela Supplier ou Customer (Pessoas)
+      const resolvedSupplier = item.supplier || (item.person ? {
+        id: item.person.id,
+        name: item.person.name,
+        cnpj: item.person.cpfCnpj,
+        phone: item.person.phone,
+        isPerson: true,
+      } : null);
+
+      return {
+        ...item,
+        supplier: resolvedSupplier,
+        status: currentStatus,
+      };
     });
 
     return NextResponse.json(formatted);
@@ -44,10 +64,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Descrição, valor e data de vencimento são obrigatórios' }, { status: 400 });
     }
 
+    let finalSupplierId: string | null = null;
+    let finalPersonId: string | null = null;
+
+    if (supplierId) {
+      // Verifica se o ID pertence a uma Pessoa (Customer) cadastrada como fornecedor
+      const isPerson = await prisma.customer.findUnique({ where: { id: supplierId } });
+      if (isPerson) {
+        finalPersonId = supplierId;
+      } else {
+        finalSupplierId = supplierId;
+      }
+    }
+
     const payable = await prisma.accountPayable.create({
       data: {
         description,
-        supplierId: supplierId || null,
+        supplierId: finalSupplierId,
+        personId: finalPersonId,
         amount: Number(amount),
         dueDate: new Date(dueDate),
         category: category || 'Despesa Geral',
@@ -55,10 +89,18 @@ export async function POST(request: Request) {
         notes,
         status: 'PENDENTE',
       },
-      include: { supplier: true },
+      include: { supplier: true, person: true },
     });
 
-    return NextResponse.json(payable, { status: 201 });
+    const resolvedSupplier = payable.supplier || (payable.person ? {
+      id: payable.person.id,
+      name: payable.person.name,
+      cnpj: payable.person.cpfCnpj,
+      phone: payable.person.phone,
+      isPerson: true,
+    } : null);
+
+    return NextResponse.json({ ...payable, supplier: resolvedSupplier }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

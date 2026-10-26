@@ -250,14 +250,14 @@ export default function ContasReceberPage() {
 
             <form onSubmit={handleCreateReceivable} className="space-y-3 text-sm">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Cliente *</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Pessoa / Cliente *</label>
                 <select
                   required
                   value={formData.customerId}
                   onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
                   className="w-full p-2.5 rounded-xl border border-slate-300 bg-white"
                 >
-                  <option value="">Selecione o Cliente</option>
+                  <option value="">Selecione a Pessoa / Cliente</option>
                   {customers.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name} {c.cpfCnpj ? `(${c.cpfCnpj})` : ''}

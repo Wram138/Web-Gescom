@@ -3,11 +3,31 @@ import prisma from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const suppliers = await prisma.supplier.findMany({
-      where: { active: true },
-      orderBy: { name: 'asc' },
-    });
-    return NextResponse.json(suppliers);
+    const [traditionalSuppliers, personSuppliers] = await Promise.all([
+      prisma.supplier.findMany({
+        where: { active: true },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.customer.findMany({
+        where: { active: true, isSupplier: true },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+
+    // Mapeia pessoas cadastradas como fornecedor para o mesmo formato
+    const mappedPersonSuppliers = personSuppliers.map((p) => ({
+      id: p.id,
+      name: p.name,
+      cnpj: p.cpfCnpj,
+      phone: p.phone,
+      email: p.email,
+      contactName: p.name,
+      address: p.address,
+      isPerson: true,
+      active: p.active,
+    }));
+
+    return NextResponse.json([...mappedPersonSuppliers, ...traditionalSuppliers]);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

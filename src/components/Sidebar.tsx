@@ -33,7 +33,7 @@ export default function Sidebar() {
     { href: '/', label: 'Dashboard', icon: LayoutDashboard, module: 'dashboard' },
     { href: '/pdv', label: 'Frente de Caixa (PDV)', icon: ShoppingCart, highlight: true, module: 'pdv' },
     { href: '/produtos', label: 'Estoque & Produtos', icon: Package, module: 'produtos' },
-    { href: '/clientes', label: 'Clientes & Revenda', icon: UserCheck, module: 'clientes' },
+    { href: '/pessoas', label: 'Pessoas', icon: Users, module: 'clientes' },
     { href: '/vendas', label: 'Vendas & Histórico', icon: Receipt, module: 'vendas' },
     { href: '/caixa', label: 'Turno de Caixa', icon: Wallet, module: 'caixa' },
     { href: '/comissoes', label: 'Comissões', icon: Percent, module: 'comissoes' },

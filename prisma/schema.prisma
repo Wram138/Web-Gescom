@@ -49,8 +49,12 @@ model Customer {
   notes              String?
   active             Boolean   @default(true)
 
+  // Tipos de Pessoa (Pessoa pode ser Cliente, Revenda e/ou Fornecedor)
+  isClient           Boolean   @default(true)  // Cliente (compra no PDV)
+  isRevenda          Boolean   @default(false) // Revenda (desconto especial)
+  isSupplier         Boolean   @default(false) // Fornecedor (usado em Contas a Pagar e Receber)
+
   // Regras de Revenda
-  isRevenda          Boolean   @default(false)
   revendaStatus      String    @default("NAO_REVENDA") // NAO_REVENDA, PENDENTE_APROVACAO, ATIVO, EXPIRADO
   revendaDesconto    Float     @default(0.0)           // Percentual de desconto de revenda (até 30%)
   revendaAprovadoPor String?                           // Gerente ou Admin que aprovou
@@ -63,6 +67,7 @@ model Customer {
   sales              Sale[]
   accountsReceivable AccountReceivable[]
   preSales           PreSale[]
+  accountsPayable    AccountPayable[]
 }
 
 model Supplier {
@@ -231,7 +236,8 @@ model Commission {
 model AccountPayable {
   id            String    @id @default(uuid())
   description   String
-  supplierId    String?
+  supplierId    String?   // Fornecedor legado
+  personId      String?   // Pessoa cadastrada como Fornecedor
   amount        Float
   dueDate       DateTime
   paidDate      DateTime?
@@ -243,6 +249,7 @@ model AccountPayable {
   updatedAt     DateTime  @updatedAt
 
   supplier Supplier? @relation(fields: [supplierId], references: [id])
+  person   Customer? @relation(fields: [personId], references: [id])
 }
 
 model AccountReceivable {

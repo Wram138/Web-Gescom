@@ -275,7 +275,7 @@ export default function ContasPagarPage() {
                   <option value="">Sem Fornecedor Vinculado</option>
                   {suppliers.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name}
+                      {s.name} {s.isPerson ? '(Pessoa)' : ''}
                     </option>
                   ))}
                 </select>
