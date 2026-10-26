@@ -15,6 +15,7 @@ import {
   Send,
   Sparkles,
 } from 'lucide-react';
+import { validateCNPJ } from '@/lib/validators';
 
 interface LicenseLockScreenProps {
   licenseInfo: {
@@ -90,6 +91,12 @@ export default function LicenseLockScreen({ licenseInfo, onRefresh }: LicenseLoc
     e.preventDefault();
     if (!cnpj.trim() || !razaoSocial.trim()) {
       setFeedback({ type: 'error', message: 'Preencha o CNPJ e a Razão Social da empresa.' });
+      return;
+    }
+
+    const cnpjCheck = validateCNPJ(cnpj);
+    if (!cnpjCheck.valid) {
+      setFeedback({ type: 'error', message: 'CNPJ inválido: ' + (cnpjCheck.error || 'Dígito verificador incorreto.') });
       return;
     }
 

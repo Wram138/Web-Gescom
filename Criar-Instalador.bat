@@ -14,3 +14,4 @@ powershell -ExecutionPolicy Bypass -File scripts\build-installer.ps1
 
 echo.
 pause
+

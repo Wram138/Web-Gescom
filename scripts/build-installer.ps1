@@ -78,3 +78,4 @@ if ($LASTEXITCODE -eq 0) {
 } else {
     Write-Host "Falha na compilação do instalador Inno Setup." -ForegroundColor Red
 }
+

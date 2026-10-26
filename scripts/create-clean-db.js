@@ -40,8 +40,19 @@ function createCleanDatabase() {
   // Reseta configurações para o cliente configurar o CNPJ e razão social próprios
   db.exec(`UPDATE SystemSetting SET 
     storeName = 'Minha Empresa Comercial', 
+    razaoSocial = '',
     cnpj = '', 
+    inscricaoEstadual = 'ISENTO',
+    inscricaoMunicipal = '',
     phone = '', 
+    email = '',
+    cep = '',
+    logradouro = '',
+    numero = '',
+    complemento = '',
+    bairro = '',
+    cidade = '',
+    uf = 'SP',
     address = '', 
     receiptFooter = 'Obrigado pela preferência! Volte sempre.'
     WHERE id = 'config_padrao';`);

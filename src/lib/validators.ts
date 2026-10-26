@@ -53,11 +53,76 @@ export function validateCEP(cepRaw: string): { valid: boolean; clean: string; fo
   const clean = cepRaw.replace(/\D/g, '');
 
   if (clean.length !== 8) {
-    return { valid: false, clean, formatted: clean, error: 'CEP deve conter 8 números' };
+    return { valid: false, clean, formatted: clean, error: 'CEP deve conter exatamente 8 dígitos numéricos' };
   }
 
   const formatted = clean.replace(/(\d{5})(\d{3})/, '$1-$2');
   return { valid: true, clean, formatted };
+}
+
+/**
+ * Validação rigorosa de CNPJ conforme algoritmo oficial da Receita Federal
+ */
+export function validateCNPJ(cnpjRaw: string): { valid: boolean; clean: string; formatted: string; error?: string } {
+  if (!cnpjRaw) return { valid: false, clean: '', formatted: '', error: 'CNPJ é obrigatório' };
+
+  const clean = cnpjRaw.replace(/\D/g, '');
+
+  if (clean.length !== 14) {
+    return { valid: false, clean, formatted: clean, error: 'CNPJ deve conter exatamente 14 dígitos numéricos' };
+  }
+
+  // Elimina CNPJs inválidos conhecidos com todos os dígitos repetidos
+  if (/^(\d)\1{13}$/.test(clean)) {
+    return { valid: false, clean, formatted: clean, error: 'CNPJ inválido (dígitos repetidos)' };
+  }
+
+  // Validação do 1º dígito verificador
+  const b = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(clean.charAt(i), 10) * b[i];
+  }
+  let mod = sum % 11;
+  const d1 = mod < 2 ? 0 : 11 - mod;
+  if (parseInt(clean.charAt(12), 10) !== d1) {
+    return { valid: false, clean, formatted: clean, error: 'CNPJ inválido (1º dígito verificador incorreto)' };
+  }
+
+  // Validação do 2º dígito verificador
+  const b2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  sum = 0;
+  for (let i = 0; i < 13; i++) {
+    sum += parseInt(clean.charAt(i), 10) * b2[i];
+  }
+  mod = sum % 11;
+  const d2 = mod < 2 ? 0 : 11 - mod;
+  if (parseInt(clean.charAt(13), 10) !== d2) {
+    return { valid: false, clean, formatted: clean, error: 'CNPJ inválido (2º dígito verificador incorreto)' };
+  }
+
+  const formatted = clean.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  return { valid: true, clean, formatted };
+}
+
+/**
+ * Validação de Inscrição Estadual (IE)
+ * Aceita 'ISENTO' ou sequências alfanuméricas/numéricas de 8 a 16 dígitos
+ */
+export function validateInscricaoEstadual(ieRaw: string): { valid: boolean; value: string; isIsento: boolean; error?: string } {
+  if (!ieRaw) return { valid: false, value: '', isIsento: false, error: 'Inscrição Estadual é obrigatória (informe o número ou ISENTO)' };
+  
+  const trimmed = ieRaw.trim().toUpperCase();
+  if (trimmed === 'ISENTO' || trimmed === 'ISENTA') {
+    return { valid: true, value: 'ISENTO', isIsento: true };
+  }
+
+  const clean = trimmed.replace(/[^\dA-Z]/g, '');
+  if (clean.length < 5 || clean.length > 20) {
+    return { valid: false, value: trimmed, isIsento: false, error: 'Inscrição Estadual deve ter entre 5 e 20 caracteres (ou ISENTO)' };
+  }
+
+  return { valid: true, value: trimmed, isIsento: false };
 }
 
 /**

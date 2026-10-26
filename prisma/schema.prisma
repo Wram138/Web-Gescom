@@ -266,10 +266,24 @@ model AccountReceivable {
 
 model SystemSetting {
   id                    String   @id @default("config_padrao")
-  storeName             String   @default("Web-Gescom Comercial")
-  cnpj                  String?  @default("")
+  storeName             String   @default("Web-Gescom Comercial") // Nome Fantasia
+  razaoSocial           String?  @default("")                     // Razão Social Oficial
+  cnpj                  String?  @default("")                     // CNPJ com validação
+  inscricaoEstadual     String?  @default("")                     // Inscrição Estadual (ou ISENTO)
+  inscricaoMunicipal    String?  @default("")                     // Inscrição Municipal (opcional)
   phone                 String?  @default("")
-  address               String?  @default("")
+  email                 String?  @default("")
+  
+  // Endereço Completo do Emitente
+  cep                   String?  @default("")
+  logradouro            String?  @default("")
+  numero                String?  @default("")
+  complemento           String?  @default("")
+  bairro                String?  @default("")
+  cidade                String?  @default("")
+  uf                    String?  @default("")
+  address               String?  @default("")                     // Endereço completo consolidado
+
   receiptFooter         String?  @default("Obrigado pela preferência! Volte sempre.")
   defaultCommissionRate Float    @default(3.0)
   updatedAt             DateTime @updatedAt
