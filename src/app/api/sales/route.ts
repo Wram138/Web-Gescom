@@ -105,11 +105,15 @@ export async function POST(request: Request) {
 
     const targetCashRegisterId = activeRegister.id;
 
-    // Busca dados do vendedor (para comissão)
+    // Busca dados do vendedor (para comissão e metas)
     let sellerCommissionRate = 0;
+    let sellerMonthlyGoal = 0;
     if (sellerId) {
       const seller = await prisma.user.findUnique({ where: { id: sellerId } });
-      if (seller) sellerCommissionRate = seller.commissionRate || 0;
+      if (seller) {
+        sellerCommissionRate = seller.commissionRate || 0;
+        sellerMonthlyGoal = seller.monthlyGoal || 0;
+      }
     }
 
     // Calcula subtotal e prepara itens
@@ -225,16 +229,80 @@ export async function POST(request: Request) {
         });
       }
 
-      // 3. Se houver vendedor e comissão > 0, cria o registro de comissão
+      // 3. Se houver vendedor e comissão > 0, cria o registro de comissão com verificação de meta mensal
       if (sellerId && totalCommission > 0) {
+        let isDoubled = false;
+        let finalCommissionAmount = totalCommission;
+        let originalAmount = totalCommission;
+        let notesText = `Comissão gerada na Venda #${sale.id}`;
+
+        if (sellerMonthlyGoal > 0) {
+          // Calcula início e fim do mês corrente
+          const now = new Date();
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+          const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+          // Soma vendas concluídas do vendedor neste mês (excluindo a venda atual que acabou de ser inserida)
+          const salesInMonth = await tx.sale.aggregate({
+            _sum: { total: true },
+            where: {
+              sellerId,
+              status: 'CONCLUIDA',
+              createdAt: {
+                gte: startOfMonth,
+                lte: endOfMonth,
+              },
+              id: { not: sale.id },
+            },
+          });
+
+          const currentMonthSalesBefore = salesInMonth._sum.total || 0;
+          const newMonthSales = currentMonthSalesBefore + finalTotal;
+
+          if (newMonthSales >= sellerMonthlyGoal) {
+            isDoubled = true;
+            finalCommissionAmount = totalCommission * 2;
+            notesText = `Comissão gerada na Venda #${sale.id} (🎯 Meta mensal atingida: comissão dobrada 2x)`;
+
+            // Se atingiu a meta com esta venda (antes ainda não havia batido), dobra retroativamente as comissões pendentes do mês!
+            if (currentMonthSalesBefore < sellerMonthlyGoal) {
+              const pendingCommissions = await tx.commission.findMany({
+                where: {
+                  sellerId,
+                  status: 'PENDENTE',
+                  isDoubled: false,
+                  createdAt: {
+                    gte: startOfMonth,
+                    lte: endOfMonth,
+                  },
+                },
+              });
+
+              for (const comm of pendingCommissions) {
+                await tx.commission.update({
+                  where: { id: comm.id },
+                  data: {
+                    isDoubled: true,
+                    originalAmount: comm.amount,
+                    amount: comm.amount * 2,
+                    notes: `${comm.notes || ''} (🎯 Dobrada pelo atingimento da meta mensal)`.trim(),
+                  },
+                });
+              }
+            }
+          }
+        }
+
         await tx.commission.create({
           data: {
             saleId: sale.id,
             sellerId,
-            amount: totalCommission,
+            amount: finalCommissionAmount,
             rate: sellerCommissionRate,
+            isDoubled,
+            originalAmount,
             status: 'PENDENTE',
-            notes: `Comissão gerada na Venda #${sale.id}`,
+            notes: notesText,
           },
         });
       }

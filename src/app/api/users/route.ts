@@ -11,6 +11,7 @@ export async function GET() {
         username: true,
         role: true,
         commissionRate: true,
+        monthlyGoal: true,
         active: true,
         createdAt: true,
       },
@@ -25,7 +26,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    const { name, username, password, role, commissionRate, active } = data;
+    const { name, username, password, role, commissionRate, monthlyGoal, active } = data;
 
     if (!name || !username || !password) {
       return NextResponse.json({ error: 'Nome, usuário e senha são obrigatórios' }, { status: 400 });
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
         passwordHash,
         role: role || 'VENDEDOR',
         commissionRate: Number(commissionRate) || 0.0,
+        monthlyGoal: Number(monthlyGoal) || 0.0,
         active: active !== undefined ? active : true,
       },
       select: {
@@ -53,6 +55,7 @@ export async function POST(request: Request) {
         username: true,
         role: true,
         commissionRate: true,
+        monthlyGoal: true,
         active: true,
         createdAt: true,
       },
@@ -67,7 +70,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const data = await request.json();
-    const { id, name, username, password, role, commissionRate, active } = data;
+    const { id, name, username, password, role, commissionRate, monthlyGoal, active } = data;
 
     if (!id) {
       return NextResponse.json({ error: 'ID do usuário é obrigatório' }, { status: 400 });
@@ -78,6 +81,7 @@ export async function PUT(request: Request) {
       username,
       role,
       commissionRate: Number(commissionRate) || 0.0,
+      monthlyGoal: monthlyGoal !== undefined ? Number(monthlyGoal) : 0.0,
       active,
     };
 
@@ -94,6 +98,7 @@ export async function PUT(request: Request) {
         username: true,
         role: true,
         commissionRate: true,
+        monthlyGoal: true,
         active: true,
       },
     });

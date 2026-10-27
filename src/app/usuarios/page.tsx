@@ -41,6 +41,7 @@ export default function UsuariosPage() {
     password: '',
     role: 'VENDEDOR',
     commissionRate: 5.0,
+    monthlyGoal: 0.0,
     active: true,
   });
 
@@ -82,6 +83,7 @@ export default function UsuariosPage() {
       password: '',
       role: 'VENDEDOR',
       commissionRate: 5.0,
+      monthlyGoal: 0.0,
       active: true,
     });
     setShowModal(true);
@@ -95,6 +97,7 @@ export default function UsuariosPage() {
       password: '', // Deixa vazio a menos que queira alterar
       role: u.role,
       commissionRate: u.commissionRate,
+      monthlyGoal: u.monthlyGoal || 0.0,
       active: u.active,
     });
     setShowModal(true);
@@ -224,6 +227,7 @@ export default function UsuariosPage() {
                 <th className="py-3.5 px-4">Login / Username</th>
                 <th className="py-3.5 px-4">Perfil / Cargo</th>
                 {isManagerOrAdmin && <th className="py-3.5 px-4 text-center">Taxa de Comissão</th>}
+                {isManagerOrAdmin && <th className="py-3.5 px-4 text-center">Meta Mensal</th>}
                 <th className="py-3.5 px-4 text-center">Status</th>
                 <th className="py-3.5 px-4 text-right">Ação</th>
               </tr>
@@ -231,7 +235,7 @@ export default function UsuariosPage() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={isManagerOrAdmin ? 6 : 5} className="text-center py-10 text-slate-400">
+                  <td colSpan={isManagerOrAdmin ? 7 : 5} className="text-center py-10 text-slate-400">
                     Carregando usuários...
                   </td>
                 </tr>
@@ -264,6 +268,21 @@ export default function UsuariosPage() {
                   {isManagerOrAdmin && (
                     <td className="py-3 px-4 text-center font-bold text-slate-700 text-xs">
                       {u.role === 'VENDEDOR' ? `${u.commissionRate}%` : '—'}
+                    </td>
+                  )}
+                  {isManagerOrAdmin && (
+                    <td className="py-3 px-4 text-center text-xs">
+                      {u.role === 'VENDEDOR' ? (
+                        u.monthlyGoal > 0 ? (
+                          <span className="font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(u.monthlyGoal)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">Sem meta</span>
+                        )
+                      ) : (
+                        '—'
+                      )}
                     </td>
                   )}
                   <td className="py-3 px-4 text-center">
@@ -373,6 +392,26 @@ export default function UsuariosPage() {
                   </div>
                 )}
               </div>
+
+              {isManagerOrAdmin && formData.role === 'VENDEDOR' && (
+                <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200 space-y-1.5">
+                  <label className="block text-xs font-bold text-amber-900">
+                    🎯 Meta Mensal de Vendas (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="50"
+                    min="0"
+                    placeholder="Ex: 10000.00"
+                    value={formData.monthlyGoal}
+                    onChange={(e) => setFormData({ ...formData, monthlyGoal: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl border border-amber-300 bg-white font-bold text-amber-900"
+                  />
+                  <p className="text-[11px] text-amber-800 leading-snug">
+                    Ao atingir esta meta no mês, a comissão do vendedor é <b>automaticamente dobrada (2x)</b> em todas as vendas!
+                  </p>
+                </div>
+              )}
 
               <div className="pt-2">
                 <label className="flex items-center gap-2 cursor-pointer">
