@@ -9,11 +9,15 @@ yarn-error.log*
 out/
 dist-package/
 dist-installer/
+dist-update/
+temp_update/
+apply-update.bat
 
 # Banco de Dados Local & Licença
 prisma/*.db
 prisma/*.db-journal
 prisma/license.json
+prisma/update_info.json
 Backups/
 
 # Variáveis de Ambiente

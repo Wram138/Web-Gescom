@@ -1,5 +1,7 @@
 import fs from 'fs';
 import path from 'path';
+import { getCurrentVersion } from './version';
+import { saveUpdateInfo, clearUpdateInfo, getUpdateInfo, UpdateInfo } from './updater';
 
 const LICENSE_FILE = path.join(process.cwd(), 'prisma', 'license.json');
 
@@ -30,6 +32,8 @@ export interface LicenseStatusResult {
   razaoSocial: string;
   nomeFantasia?: string;
   vpsUrl: string;
+  systemVersion?: string;
+  update?: UpdateInfo | null;
 }
 
 // Configuração inicial quando o sistema é instalado do zero
@@ -48,7 +52,7 @@ const DEFAULT_LICENSE: LicenseData = {
 export function getLicenseConfig(): LicenseData {
   try {
     if (fs.existsSync(LICENSE_FILE)) {
-      const content = fs.readFileSync(LICENSE_FILE, 'utf8');
+      const content = fs.readFileSync(LICENSE_FILE, 'utf8').replace(/^\uFEFF/, '');
       const parsed = JSON.parse(content);
       return {
         ...DEFAULT_LICENSE,
@@ -74,7 +78,7 @@ export function saveLicenseConfig(data: Partial<LicenseData>): LicenseData {
   let current: LicenseData = DEFAULT_LICENSE;
   try {
     if (fs.existsSync(LICENSE_FILE)) {
-      current = { ...DEFAULT_LICENSE, ...JSON.parse(fs.readFileSync(LICENSE_FILE, 'utf8')) };
+      current = { ...DEFAULT_LICENSE, ...JSON.parse(fs.readFileSync(LICENSE_FILE, 'utf8').replace(/^\uFEFF/, '')) };
     }
   } catch {}
 
@@ -101,6 +105,8 @@ export function saveLicenseConfig(data: Partial<LicenseData>): LicenseData {
 export function evaluateLicenseLocal(): LicenseStatusResult {
   const config = getLicenseConfig();
   const now = Date.now();
+  const currentVersion = getCurrentVersion();
+  const updateInfo = getUpdateInfo();
 
   // Caso 1: Sistema zerado / recém instalado (nenhum CNPJ inserido ainda)
   if (!config.cnpj || config.status === 'NAO_LICENCIADO') {
@@ -115,6 +121,8 @@ export function evaluateLicenseLocal(): LicenseStatusResult {
       razaoSocial: '',
       nomeFantasia: '',
       vpsUrl: OFFICIAL_LICENSE_SERVER,
+      systemVersion: currentVersion,
+      update: updateInfo,
     };
   }
 
@@ -131,6 +139,8 @@ export function evaluateLicenseLocal(): LicenseStatusResult {
       razaoSocial: config.razaoSocial,
       nomeFantasia: config.nomeFantasia,
       vpsUrl: OFFICIAL_LICENSE_SERVER,
+      systemVersion: currentVersion,
+      update: updateInfo,
     };
   }
 
@@ -147,6 +157,8 @@ export function evaluateLicenseLocal(): LicenseStatusResult {
       razaoSocial: config.razaoSocial,
       nomeFantasia: config.nomeFantasia,
       vpsUrl: OFFICIAL_LICENSE_SERVER,
+      systemVersion: currentVersion,
+      update: updateInfo,
     };
   }
 
@@ -163,6 +175,8 @@ export function evaluateLicenseLocal(): LicenseStatusResult {
       razaoSocial: config.razaoSocial,
       nomeFantasia: config.nomeFantasia,
       vpsUrl: OFFICIAL_LICENSE_SERVER,
+      systemVersion: currentVersion,
+      update: updateInfo,
     };
   }
 
@@ -182,6 +196,8 @@ export function evaluateLicenseLocal(): LicenseStatusResult {
       razaoSocial: config.razaoSocial,
       nomeFantasia: config.nomeFantasia,
       vpsUrl: OFFICIAL_LICENSE_SERVER,
+      systemVersion: currentVersion,
+      update: updateInfo,
     };
   }
 
@@ -201,6 +217,8 @@ export function evaluateLicenseLocal(): LicenseStatusResult {
       razaoSocial: config.razaoSocial,
       nomeFantasia: config.nomeFantasia,
       vpsUrl: OFFICIAL_LICENSE_SERVER,
+      systemVersion: currentVersion,
+      update: updateInfo,
     };
   }
 
@@ -216,6 +234,8 @@ export function evaluateLicenseLocal(): LicenseStatusResult {
       razaoSocial: config.razaoSocial,
       nomeFantasia: config.nomeFantasia,
       vpsUrl: OFFICIAL_LICENSE_SERVER,
+      systemVersion: currentVersion,
+      update: updateInfo,
     };
   }
 
@@ -229,6 +249,8 @@ export function evaluateLicenseLocal(): LicenseStatusResult {
     razaoSocial: config.razaoSocial,
     nomeFantasia: config.nomeFantasia,
     vpsUrl: OFFICIAL_LICENSE_SERVER,
+    systemVersion: currentVersion,
+    update: updateInfo,
   };
 }
 
@@ -322,12 +344,13 @@ export async function requestLicenseActivation({
   phone?: string;
 }): Promise<{ success: boolean; status: string; message: string }> {
   try {
+    const currentVersion = getCurrentVersion();
     const { ok, status, data } = await callLicenseApi('/api/license/request', {
       cnpj,
       razaoSocial,
       nomeFantasia,
       phone,
-      systemVersion: 'Web-Gescom v1.0.0 (Porta 1806)',
+      systemVersion: currentVersion,
     });
 
     if (ok) {
@@ -422,13 +445,25 @@ export async function syncLicenseWithVPS(): Promise<LicenseStatusResult> {
   }
 
   try {
+    const currentVersion = getCurrentVersion();
     const { ok, status, data } = await callLicenseApi('/api/license/verify', {
       cnpj: config.cnpj,
       razaoSocial: config.razaoSocial,
-      systemVersion: 'Web-Gescom v1.0.0 (Porta 1806)',
+      systemVersion: currentVersion,
     });
 
     if (ok) {
+      // Processa comando ou oferta de atualização OTA remota
+      if (data.update) {
+        if (data.update.hasUpdate) {
+          saveUpdateInfo(data.update);
+        } else {
+          clearUpdateInfo();
+        }
+      }
+
+      const activeUpdate = data.update || getUpdateInfo();
+
       if (data.authorized) {
         // Sucesso: licença ativa
         saveLicenseConfig({
@@ -449,6 +484,8 @@ export async function syncLicenseWithVPS(): Promise<LicenseStatusResult> {
           razaoSocial: config.razaoSocial,
           nomeFantasia: config.nomeFantasia,
           vpsUrl: OFFICIAL_LICENSE_SERVER,
+          systemVersion: currentVersion,
+          update: activeUpdate,
         };
       } else {
         // Bloqueado pelo servidor (ex: SUSPENSO por inadimplência ou PENDENTE)
@@ -472,6 +509,8 @@ export async function syncLicenseWithVPS(): Promise<LicenseStatusResult> {
           razaoSocial: config.razaoSocial,
           nomeFantasia: config.nomeFantasia,
           vpsUrl: OFFICIAL_LICENSE_SERVER,
+          systemVersion: currentVersion,
+          update: activeUpdate,
         };
       }
     } else {

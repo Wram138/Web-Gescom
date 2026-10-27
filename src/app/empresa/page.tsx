@@ -17,6 +17,8 @@ import {
   FileText,
   Hash,
   Check,
+  Sparkles,
+  Download,
 } from 'lucide-react';
 import { validateCNPJ, validateCEP, fetchAddressByCEP } from '@/lib/validators';
 
@@ -56,6 +58,7 @@ export default function EmpresaLicencaPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [licenseData, setLicenseData] = useState<any>(null);
+  const [updateData, setUpdateData] = useState<any>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Form states - Emitente & Fiscais
@@ -121,6 +124,12 @@ export default function EmpresaLicencaPage() {
       if (resLic.ok) {
         const lic = await resLic.json();
         setLicenseData(lic);
+      }
+
+      // Carrega status de Atualização OTA
+      const resUpd = await fetch('/api/system/update');
+      if (resUpd.ok) {
+        setUpdateData(await resUpd.json());
       }
     } catch (e: any) {
       console.error('Erro ao carregar dados:', e);
@@ -212,6 +221,11 @@ export default function EmpresaLicencaPage() {
       const res = await fetch('/api/license', { method: 'POST' });
       const data = await res.json();
       setLicenseData(data);
+
+      const resUpd = await fetch('/api/system/update');
+      if (resUpd.ok) {
+        setUpdateData(await resUpd.json());
+      }
       if (data.isBlocked) {
         setFeedback({
           type: 'error',
@@ -370,8 +384,8 @@ export default function EmpresaLicencaPage() {
         </div>
       )}
 
-      {/* Status da Licença */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Status da Licença e Versão */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Status da Licença</span>
           <div className="flex items-center gap-2">
@@ -416,6 +430,30 @@ export default function EmpresaLicencaPage() {
           <p className="font-extrabold text-indigo-600 text-sm">Até 5 Dias (120h)</p>
           <p className="text-[11px] text-slate-400">
             Opera normalmente sem internet por até 5 dias.
+          </p>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Versão do Sistema</span>
+            <span className="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">OTA</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <p className="font-extrabold text-slate-800 text-sm">v{updateData?.currentVersion || '1.0.0'}</p>
+            {updateData?.hasUpdate ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse">
+                v{updateData.targetVersion} disp.
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                Atualizado
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-400">
+            {updateData?.hasUpdate
+              ? `Atualização comandada para v${updateData.targetVersion}`
+              : 'Sistema na versão mais recente.'}
           </p>
         </div>
       </div>

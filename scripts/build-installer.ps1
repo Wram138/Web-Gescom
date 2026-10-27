@@ -50,11 +50,10 @@ Copy-Item -Path "$RootDir\Icon\*" -Destination "$DistPackageDir\Icon\" -Recurse 
 Copy-Item -Path "$RootDir\version.ini" -Destination "$DistPackageDir\version.ini" -Force
 Copy-Item -Path "$RootDir\Fazer-Backup.bat" -Destination "$DistPackageDir\Fazer-Backup.bat" -Force
 
-# Copiar prisma schema e banco limpo (remover qualquer banco de desenvolvimento)
+# Copiar prisma schema e banco limpo (remover qualquer banco de desenvolvimento ou backups)
 Write-Host "Configurando schema e banco limpo..." -ForegroundColor Gray
-if (Test-Path "$DistPackageDir\prisma\gescom.db") {
-    Remove-Item "$DistPackageDir\prisma\gescom.db" -Force
-}
+Get-ChildItem -Path "$DistPackageDir\prisma" -Filter "*.db" -ErrorAction SilentlyContinue | Remove-Item -Force
+Get-ChildItem -Path "$DistPackageDir\prisma" -Filter "*.db-journal" -ErrorAction SilentlyContinue | Remove-Item -Force
 if (Test-Path "$DistPackageDir\prisma\license.json") {
     Remove-Item "$DistPackageDir\prisma\license.json" -Force
 }

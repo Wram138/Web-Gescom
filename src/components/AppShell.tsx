@@ -8,6 +8,7 @@ import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import LoginScreen from '@/components/LoginScreen';
 import LicenseLockScreen from '@/components/LicenseLockScreen';
+import UpdateNotification from '@/components/UpdateNotification';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -100,6 +101,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+      <UpdateNotification />
     </SidebarProvider>
   );
 }

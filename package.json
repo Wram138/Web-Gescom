@@ -1,8 +1,8 @@
 {
   "name": "web-gescom",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
-  "description": "Web-Gescom - Sistema de PDV e Gestão Comercial",
+  "description": "Web-Gescom - Sistema de PDV e GestÃ£o Comercial",
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "prebuild": "node scripts/bump-version.js",
